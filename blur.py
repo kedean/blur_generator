@@ -109,14 +109,14 @@ class BlurringMatrix:
         if(self.matrix.shape[2] != 3):
             raise NotImplementedError("Filtering can only operate on RGB images (3-channel) at this time. Input has {0} channels.".format(self.matrix.shape[2]))
         s = time.time()
-        rows, cols = self.matrix.shape[:2]
-        (u, v) = dftuv(rows, cols)
+        cols, rows = self.matrix.shape[:2]
+        (u, v) = dftuv(cols, rows)
         D = numpy.sqrt(u**2 + v**2)
         sigma = (self.pixels_per_degree * float(cyclesPerDegree)) / 2.0
         f = numpy.exp(-(D**2)/((sigma**2)))
         out = None
         if not concurrent:
-            fn = numpy.reshape(numpy.tile(f, 3), (1024, 768, 3), 'F')
+            fn = numpy.reshape(numpy.tile(f, 3), (cols, rows, 3), 'F')
             fftd = numpy.fft.fft2(self.matrix, axes=(0,1))
             out = numpy.real(numpy.fft.ifft2(fftd * fn, axes=(0,1)))
         else: #futures exists!
@@ -132,6 +132,8 @@ class BlurringMatrix:
             
         return BlurringMatrix(numpy.clip(out, 0, 255).astype('uint8'), self.pixels_per_degree)
 
+
+#performs a blur on one nxm array with the multiplier f
 def filterAndInvert(array, f):
         fftd = numpy.fft.fft2(array)
         low = fftd * f
