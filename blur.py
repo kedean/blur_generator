@@ -9,12 +9,12 @@ class Types:
 def open(source, base_type=None):
     if base_type is None:
         try:
-            return loadWithPIL(source)
+            return loadWithPygame(source)
         except ImportError:
             try:
-                return loadWithPygame(source)
+                return loadWithPIL(source)
             except ImportError:
-                raise ImportError("Could not import PIL or Pygame.")
+                raise ImportError("Could not import Pygame or PIL.")
     elif base_type == Types.PIL:
         return loadWithPIL(source)
     elif base_type == Types.PYGAME:
@@ -108,11 +108,11 @@ class BlurringMatrix:
         
         if(self.matrix.shape[2] != 3):
             raise NotImplementedError("Filtering can only operate on RGB images (3-channel) at this time. Input has {0} channels.".format(self.matrix.shape[2]))
-        s = time.time()
+        
         cols, rows = self.matrix.shape[:2]
         (u, v) = dftuv(cols, rows)
         D = numpy.sqrt(u**2 + v**2)
-        sigma = (self.pixels_per_degree * float(cyclesPerDegree)) / 2.0
+        sigma = (self.pixels_per_degree * cyclesPerDegree) / 2.0
         f = numpy.exp(-(D**2)/((sigma**2)))
         out = None
         if not concurrent:
@@ -130,7 +130,7 @@ class BlurringMatrix:
                     for n, level in enumerate(e.map(filterAndInvert, [self.matrix[:,:,0], self.matrix[:,:,1], self.matrix[:,:,2]], [f, f, f])):
                         out[:,:,n] = level
             
-        return BlurringMatrix(numpy.clip(out, 0, 255).astype('uint8'), self.pixels_per_degree)
+        return BlurringMatrix(numpy.clip(out, 0, 255), self.pixels_per_degree)
 
 
 #performs a blur on one nxm array with the multiplier f
