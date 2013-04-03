@@ -126,9 +126,8 @@ class BlurringMatrix:
                 raise ImportError("Could not import the Python3 concurrency library. Set concurrent=False.")
             else:
                 with concurrent.futures.ProcessPoolExecutor() as e:
-                    out = self.matrix.copy()
-                    for n, level in enumerate(e.map(filterAndInvert, [self.matrix[:,:,0], self.matrix[:,:,1], self.matrix[:,:,2]], [f, f, f])):
-                        out[:,:,n] = level
+                    mapper = e.map(filterAndInvert, [self.matrix[:,:,0], self.matrix[:,:,1], self.matrix[:,:,2]], [f, f, f])
+                    out = numpy.concatenate((mapper.__next__(),mapper.__next__(), mapper.__next__()), axis=2)
             
         return BlurringMatrix(numpy.clip(out, 0, 255), self.pixels_per_degree)
 
@@ -138,7 +137,7 @@ def filterAndInvert(array, f):
         fftd = numpy.fft.fft2(array)
         low = fftd * f
         ifftd = numpy.real(numpy.fft.ifft2(low))
-        return ifftd
+        return ifftd.reshape(array.shape[0], array.shape[1], 1)
 
 def dftuv(m, n):
     u = numpy.arange(0, m)
