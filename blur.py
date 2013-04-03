@@ -1,5 +1,6 @@
 import numpy
 import math
+import time
 
 class Types:
     PIL = 0
@@ -71,7 +72,7 @@ def exportToPygame(matrix, surface=None):
         raise ImportError("Could not import Pygame.")
     else:
         if surface is None:
-            surface = pygame.Surface(matrix.shape[0:2])
+            surface = pygame.Surface(matrix.matrix.shape[0:2])
         pygame.surfarray.blit_array(surface, matrix.matrix.astype('uint8'))
         return surface
 
@@ -101,34 +102,41 @@ class BlurringMatrix:
     """
     Applies a low pass blurring filter, allowing a maximum of the given cycles per degree of visual angle.
     """
-    def applyLowPassFilter(self, cyclesPerDegree):
+    def applyLowPassFilter(self, cyclesPerDegree, concurrent=False):
         if(not self.resolutionIsCalculated()):
             raise RuntimeError("The pixels_per_degree must be set before a low-pass filter can be applied.")
         
         if(self.matrix.shape[2] != 3):
             raise NotImplementedError("Filtering can only operate on RGB images (3-channel) at this time. Input has {0} channels.".format(self.matrix.shape[2]))
-        
+        s = time.time()
         rows, cols = self.matrix.shape[:2]
-        
         (u, v) = dftuv(rows, cols)
         D = numpy.sqrt(u**2 + v**2)
         sigma = (self.pixels_per_degree * float(cyclesPerDegree)) / 2.0
         f = numpy.exp(-(D**2)/((sigma**2)))
-        
-        fftR = numpy.fft.fft2(self.matrix[:,:,0])
-        fftG = numpy.fft.fft2(self.matrix[:,:,1])
-        fftB = numpy.fft.fft2(self.matrix[:,:,2])
-        
-        lowFFTr = fftR*f;
-        lowFFTg = fftG*f;
-        lowFFTb = fftB*f;
-        
-        out = numpy.zeros(self.matrix.shape)
-        out[:,:,0] = numpy.real(numpy.fft.ifft2(lowFFTr))
-        out[:,:,1] = numpy.real(numpy.fft.ifft2(lowFFTg))
-        out[:,:,2] = numpy.real(numpy.fft.ifft2(lowFFTb))
-        
-        return BlurringMatrix(numpy.clip(out, 0, 255).astype('float64'), self.pixels_per_degree)
+        out = None
+        if not concurrent:
+            fn = numpy.reshape(numpy.tile(f, 3), (1024, 768, 3), 'F')
+            fftd = numpy.fft.fft2(self.matrix, axes=(0,1))
+            out = numpy.real(numpy.fft.ifft2(fftd * fn, axes=(0,1)))
+        else: #futures exists!
+            try:
+                import concurrent.futures
+            except:
+                raise ImportError("Could not import the Python3 concurrency library. Set concurrent=False.")
+            else:
+                with concurrent.futures.ProcessPoolExecutor() as e:
+                    out = self.matrix.copy()
+                    for n, level in enumerate(e.map(filterAndInvert, [self.matrix[:,:,0], self.matrix[:,:,1], self.matrix[:,:,2]], [f, f, f])):
+                        out[:,:,n] = level
+            
+        return BlurringMatrix(numpy.clip(out, 0, 255).astype('uint8'), self.pixels_per_degree)
+
+def filterAndInvert(array, f):
+        fftd = numpy.fft.fft2(array)
+        low = fftd * f
+        ifftd = numpy.real(numpy.fft.ifft2(low))
+        return ifftd
 
 def dftuv(m, n):
     u = numpy.arange(0, m)
