@@ -9,16 +9,16 @@ class Types:
 def open(source, base_type=None):
     if base_type is None:
         try:
-            return loadWithPygame(source)
+            return openWithPygame(source)
         except ImportError:
             try:
-                return loadWithPIL(source)
+                return openWithPIL(source)
             except ImportError:
                 raise ImportError("Could not import Pygame or PIL.")
     elif base_type == Types.PIL:
-        return loadWithPIL(source)
+        return openWithPIL(source)
     elif base_type == Types.PYGAME:
-        return loadWithPygame(source)
+        return openWithPygame(source)
     
     return None
 
@@ -38,7 +38,7 @@ def export(matrix, base_type=None):
     
     return None
 
-def loadWithPIL(source):
+def openWithPIL(source):
     try:
         from PIL import Image
     except:
@@ -47,7 +47,7 @@ def loadWithPIL(source):
         image = Image.open(source)
         return BlurringMatrix(numpy.array(image, dtype='uint8'))
 
-def loadWithPygame(source):
+def openWithPygame(source):
     try:
         import pygame
     except:
