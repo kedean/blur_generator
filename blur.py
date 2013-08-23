@@ -110,7 +110,7 @@ class BlurringMatrix:
             raise NotImplementedError("Filtering can only operate on RGB images (3-channel) at this time. Input has {0} channels.".format(self.matrix.shape[2]))
         
         cols, rows = self.matrix.shape[:2]
-        (u, v) = dftuv(cols, rows)
+        (u, v) = meshgridFrequencyMatrix(cols, rows)
         D = numpy.sqrt(u**2 + v**2)
         sigma = (self.pixels_per_degree * cyclesPerDegree) / 2.0
         f = numpy.exp(-(D**2)/((sigma**2)))
@@ -139,7 +139,10 @@ def filterAndInvert(array, f):
         ifftd = numpy.real(numpy.fft.ifft2(low))
         return ifftd.reshape(array.shape[0], array.shape[1], 1)
 
-def dftuv(m, n):
+#computes the meshgrid frequency matrix of the m by n matrix. Derived from matlab code.
+#Copyright 2002-2004 R. C. Gonzalez, R. E. Woods, & S. L. Eddins 
+#Digital Image Processing Using MATLAB, Prentice-Hall, 2004 
+def meshgridFrequencyMatrix(m, n):
     u = numpy.arange(0, m)
     v = numpy.arange(0, n)
     
