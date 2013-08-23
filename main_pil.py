@@ -48,10 +48,10 @@ print("Applying filter of {0:f} cycles per degree to {1}".format(cpd, filename))
 
 generator.calcPixelsPerDegree((1024, 768), (36, 27), 61)
 try:
-    generator = generator.applyLowPassFilter(cpd, concurrent=args.concurrent)
+    generator = generator.lowPassFilter(cpd, concurrent=args.concurrent)
 except ImportError:
     print("Unable to import concurrency libraries. Ensure you are using Python 3.x or higher. Continuing normally.")
-    generator = generator.applyLowPassFilter(cpd, concurrent=False)
+    generator = generator.lowPassFilter(cpd, concurrent=False)
 output = blur.exportToPIL(generator)
 
 if savedir is not None:
