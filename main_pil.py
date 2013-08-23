@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser(description="Takes in a file and applies a low-
 parser.add_argument("cycles_per_degree", type=float, help="The lower bound cycles per degree of the filter.")
 parser.add_argument("source_file", help="Filename of the image to apply the filter to.")
 parser.add_argument("destination_file", nargs="?", default=None, help="Filename to write the filtered image to. If not given, the image is display on screen.")
+parser.add_argument("-concurrent, -c", dest="concurrent", action="store_true", help="If set, the blur will be generated concurrently. Only supported under Python 3.x and up.")
 
 args = parser.parse_args()
 
@@ -17,7 +18,6 @@ image_prompt = "Filename or directory to blur: "
 cpd_prompt = "CPD Bound: "
 save_prompt = "Filename or directory to save to: "
 saving_error_msg = "Could not save to the indicated path, please make sure the output filename is a valid image format. Exiting."
-
 
 cpd = args.cycles_per_degree
 filename = args.source_file
@@ -47,7 +47,11 @@ except IOError:
 print("Applying filter of {0:f} cycles per degree to {1}".format(cpd, filename))
 
 generator.calcPixelsPerDegree((1024, 768), (36, 27), 61)
-generator = generator.applyLowPassFilter(cpd, concurrent=False)
+try:
+    generator = generator.applyLowPassFilter(cpd, concurrent=args.concurrent)
+except ImportError:
+    print("Unable to import concurrency libraries. Ensure you are using Python 3.x or higher. Continuing normally.")
+    generator = generator.applyLowPassFilter(cpd, concurrent=False)
 output = blur.exportToPIL(generator)
 
 if savedir is not None:
