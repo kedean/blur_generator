@@ -1,5 +1,4 @@
 import blur
-import pygame
 import time
 import os
 import argparse
