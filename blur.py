@@ -102,7 +102,7 @@ class BlurringMatrix:
     """
     Applies a low pass blurring filter, allowing a maximum of the given cycles per degree of visual angle.
     """
-    def lwPassFilter(self, cyclesPerDegree, concurrent=False):
+    def lowPassFilter(self, cyclesPerDegree, concurrent=False):
         if(not self.resolutionIsCalculated()):
             raise RuntimeError("The pixels_per_degree must be set before a low-pass filter can be applied.")
         
