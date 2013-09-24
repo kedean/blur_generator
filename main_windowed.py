@@ -44,17 +44,18 @@ def window(screen, samples, window_radius, position):
     #loop over each sample but the blurriest, draw a circle of transparency, and paste it over the output surface
     for index in range(2, len(samples) - 1):
         radius += 2
-        noutput = pygame.Surface((radius*2, radius*2)) #needs a new surface for a) effiency and b) so that the samples are not altered
-        noutput.set_colorkey((0,0,0))
-        noutput.blit(samples[-index], (0,0), (pos_x - radius, pos_y - radius, radius*2, radius*2)) #again only copy the relavent area, its alot faster than the whole thing
+        dubradius = radius*2
+        noutput = pygame.Surface((dubradius, dubradius)) #needs a new surface for a) effiency and b) so that the samples are not altered
+        noutput.blit(samples[-index], (0,0), (pos_x - radius, pos_y - radius, dubradius, dubradius)) #again only copy the relavent area, its alot faster than the whole thing
+        noutput.set_colorkey((0,0,0), pygame.RLEACCEL)
         pygame.draw.circle(noutput, (0,0,0), (radius, radius), radius) #since the box is only radius*2 in each dimension, the circle is positioned at its center, or (radius, radius)
         screen.blit(noutput, (pos_x - radius, pos_y - radius))
 
     #now do it again for the blurriest image, samples[0], except this time the entire image is used
     radius += 2
     noutput = samples[0].copy() #thus we copy instead of blitting
-    noutput.set_colorkey((0,0,0))
     pygame.draw.circle(noutput, (0,0,0), position, radius) #and the circle is now at the input position, since its full sized instead of a cutout
+    noutput.set_colorkey((0,0,0), pygame.RLEACCEL)
     screen.blit(noutput, (0,0))
 
 def main():
@@ -77,13 +78,17 @@ def main():
     screen.blit(samples[0], (0,0))
 
     running = True
-    clock = pygame.time.Clock()
-    print("fps: 0")
+    frame_times = []
+    print("average frame time: 0ms")
     while running:
-        window(screen, samples, 200, pygame.mouse.get_pos())
+        t1 = time.time()
+        window(screen, samples, 300, pygame.mouse.get_pos())
+        t2 = time.time()
+        frame_times.append((t2 - t1) * 1000.0)
         pygame.display.flip()
-        clock.tick(85)
-        print("\rfps: {0}".format(clock.get_fps()))
+        
+        print("\raverage frame time: {0}ms".format(sum(frame_times)/len(frame_times)))
+
         for e in pygame.event.get():
             if e.type == pygame.KEYDOWN and (e.key == pygame.K_q or e.key == pygame.K_ESCAPE):
                 running = False
