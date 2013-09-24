@@ -100,9 +100,9 @@ class BlurringMatrix:
         return (self.pixels_per_degree is not None)
     
     """
-    Applies a low pass blurring filter, allowing a maximum of the given cycles per degree of visual angle.
+    Applies a low pass blurring filter to each cpd in the given list, allowing a maximum of the given cycles per degree of visual angle.
     """
-    def lowPassFilter(self, cyclesPerDegree, concurrent=False):
+    def lowPassFilterBatch(self, cyclesPerDegree, concurrent=False, supress=False):
         if(not self.resolutionIsCalculated()):
             raise RuntimeError("The pixels_per_degree must be set before a low-pass filter can be applied.")
         
@@ -112,18 +112,63 @@ class BlurringMatrix:
         cols, rows = self.matrix.shape[:2]
         (u, v) = meshgridFrequencyMatrix(cols, rows)
         D = numpy.sqrt(u**2 + v**2)
+        fftd = numpy.fft.fft2(self.matrix, axes=(0,1))
+        
+        if type(cyclesPerDegree) == int:
+            cyclesPerDegree = [cyclesPerDegree]
+        for cpd in cyclesPerDegree:
+            sigma = (self.pixels_per_degree * cpd) / 2.0
+            f = numpy.exp(-(D**2)/((sigma**2)))
+            out = None
+            if not concurrent:
+                fn = numpy.reshape(numpy.tile(f, 3), (cols, rows, 3), 'F')
+                out = numpy.real(numpy.fft.ifft2(fftd * fn, axes=(0,1)))
+            else: #futures exists!
+                try:
+                    import concurrent.futures
+                except:
+                    if supress:
+                        fn = numpy.reshape(numpy.tile(f, 3), (cols, rows, 3), 'F')
+                        out = numpy.real(numpy.fft.ifft2(fftd * fn, axes=(0,1)))
+                    else:
+                        raise ImportError("Could not import the Python3 concurrency library. Set concurrent=False.")
+                else:
+                    with concurrent.futures.ProcessPoolExecutor() as e:
+                        mapper = e.map(filterAndInvert, [self.matrix[:,:,0], self.matrix[:,:,1], self.matrix[:,:,2]], [f, f, f])
+                        out = numpy.concatenate((mapper.__next__(),mapper.__next__(), mapper.__next__()), axis=2)
+                
+            yield BlurringMatrix(numpy.clip(out, 0, 255), self.pixels_per_degree)
+
+    """
+    Applies a low pass blurring filter, allowing a maximum of the given cycles per degree of visual angle.
+    """
+    def lowPassFilter(self, cyclesPerDegree, concurrent=False, supress=False):
+        if(not self.resolutionIsCalculated()):
+            raise RuntimeError("The pixels_per_degree must be set before a low-pass filter can be applied.")
+        
+        if(self.matrix.shape[2] != 3):
+            raise NotImplementedError("Filtering can only operate on RGB images (3-channel) at this time. Input has {0} channels.".format(self.matrix.shape[2]))
+        
+        cols, rows = self.matrix.shape[:2]
+        (u, v) = meshgridFrequencyMatrix(cols, rows)
+        D = numpy.sqrt(u**2 + v**2)
+        fftd = numpy.fft.fft2(self.matrix, axes=(0,1))
+        
         sigma = (self.pixels_per_degree * cyclesPerDegree) / 2.0
         f = numpy.exp(-(D**2)/((sigma**2)))
         out = None
         if not concurrent:
             fn = numpy.reshape(numpy.tile(f, 3), (cols, rows, 3), 'F')
-            fftd = numpy.fft.fft2(self.matrix, axes=(0,1))
             out = numpy.real(numpy.fft.ifft2(fftd * fn, axes=(0,1)))
         else: #futures exists!
             try:
                 import concurrent.futures
             except:
-                raise ImportError("Could not import the Python3 concurrency library. Set concurrent=False.")
+                if supress:
+                    fn = numpy.reshape(numpy.tile(f, 3), (cols, rows, 3), 'F')
+                    out = numpy.real(numpy.fft.ifft2(fftd * fn, axes=(0,1)))
+                else:
+                    raise ImportError("Could not import the Python3 concurrency library. Set concurrent=False.")
             else:
                 with concurrent.futures.ProcessPoolExecutor() as e:
                     mapper = e.map(filterAndInvert, [self.matrix[:,:,0], self.matrix[:,:,1], self.matrix[:,:,2]], [f, f, f])
@@ -133,8 +178,9 @@ class BlurringMatrix:
 
 
 #performs a blur on one nxm array with the multiplier f
-def filterAndInvert(array, f):
-        fftd = numpy.fft.fft2(array)
+def filterAndInvert(array, f, fftd=None):
+        if fftd is None:
+            fftd = numpy.fft.fft2(array)
         low = fftd * f
         ifftd = numpy.real(numpy.fft.ifft2(low))
         return ifftd.reshape(array.shape[0], array.shape[1], 1)

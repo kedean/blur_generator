@@ -2,6 +2,7 @@ import blur
 import time
 import os
 import argparse
+import numpy
 
 from PIL import PngImagePlugin, BmpImagePlugin, JpegImagePlugin, TiffImagePlugin, GifImagePlugin
 

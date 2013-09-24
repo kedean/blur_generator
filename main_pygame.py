@@ -4,8 +4,6 @@ import time
 import os
 import argparse
 
-import pygame
-
 def main():
     parser = argparse.ArgumentParser(description="Takes in a file and applies a low-pass blur filter. Supported formats are tif, jpg, png, bmp, and gif.")
     parser.add_argument("cycles_per_degree", type=float, help="The lower bound cycles per degree of the filter.")
